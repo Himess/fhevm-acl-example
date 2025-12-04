@@ -457,7 +457,7 @@ body {
 
 .acl-header {
   display: grid;
-  grid-template-columns: 30px 1fr 80px 50px;
+  grid-template-columns: 24px 1fr 70px;
   gap: 0.5rem;
   padding: 0.5rem;
   font-size: 0.7rem;
@@ -468,7 +468,7 @@ body {
 
 .acl-row {
   display: grid;
-  grid-template-columns: 30px 1fr 80px 50px;
+  grid-template-columns: 24px 1fr 70px;
   gap: 0.5rem;
   padding: 0.5rem;
   background: var(--bg-tertiary);
@@ -512,14 +512,6 @@ body {
 .category.checking { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .category.public { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
 .category.delegation { background: rgba(124, 58, 237, 0.2); color: #a78bfa; }
-
-.acl-row .common {
-  display: flex;
-  justify-content: center;
-}
-
-.acl-row .common .yes { color: var(--success); }
-.acl-row .common .no { color: var(--danger); }
 
 .acl-legend {
   margin-top: 1rem;
