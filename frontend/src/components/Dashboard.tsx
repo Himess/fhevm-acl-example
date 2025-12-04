@@ -1,130 +1,120 @@
 import { useState } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import {
-  Users,
   Shield,
-  Eye,
-  EyeOff,
-  UserPlus,
   CheckCircle,
   XCircle,
-  Briefcase,
-  Calculator,
+  Clock,
+  UserCheck,
+  UserX,
   Lock,
   Unlock,
   Zap,
   Wifi,
   WifiOff,
-  Play
+  Play,
+  Calendar,
+  FileText,
+  ArrowRight
 } from 'lucide-react';
-
-type Role = 'hr' | 'employee' | 'accountant';
 
 interface Toast {
   id: number;
   message: string;
   type: 'success' | 'info' | 'warning';
-  aclFunctions?: string[];
+  fn?: string;
 }
 
-interface MockEmployee {
-  address: string;
-  name: string;
-  salary: number;
-  delegatedTo?: string;
-  delegationExpiry?: Date;
+interface DelegationInfo {
+  delegate: string;
+  expiry: Date;
+  isActive: boolean;
 }
 
 export function Dashboard() {
   const { isConnected } = useAccount();
   const chainId = useChainId();
-  const [activeRole, setActiveRole] = useState<Role>('hr');
+
+  // State
   const [delegateAddress, setDelegateAddress] = useState('');
   const [delegationDays, setDelegationDays] = useState(30);
-  const [newEmployeeAddress, setNewEmployeeAddress] = useState('');
-  const [salaryAmount, setSalaryAmount] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [toastId, setToastId] = useState(0);
+  const [mockMode] = useState(true);
 
-  // Mock mode state
-  const [mockMode, setMockMode] = useState(true);
-  const [mockEmployees, setMockEmployees] = useState<MockEmployee[]>([]);
-  const [mockBudgetPublic, setMockBudgetPublic] = useState(false);
-  const [mockCurrentEmployee, setMockCurrentEmployee] = useState<MockEmployee | null>(null);
+  // Demo state
+  const [hasStoredData, setHasStoredData] = useState(false);
+  const [storedValue, setStoredValue] = useState(75000);
+  const [delegation, setDelegation] = useState<DelegationInfo | null>(null);
 
-  // Check if connected to supported network
-  const isZamaNetwork = chainId === 9000 || chainId === 8009;
+  // Network info
   const networkName = chainId === 9000 ? 'Zama Devnet' : chainId === 8009 ? 'Zama Testnet' : chainId === 11155111 ? 'Sepolia' : 'Unknown';
 
   // Toast helper
-  const showToast = (message: string, type: 'success' | 'info' | 'warning', aclFunctions?: string[]) => {
+  const showToast = (message: string, type: 'success' | 'info' | 'warning', fn?: string) => {
     const id = toastId + 1;
     setToastId(id);
-    setToasts(prev => [...prev, { id, message, type, aclFunctions }]);
+    setToasts(prev => [...prev, { id, message, type, fn }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 4000);
   };
 
-  // Load demo data
-  const loadDemoData = () => {
-    const demoEmployees: MockEmployee[] = [
-      { address: '0x1234...5678', name: 'Alice', salary: 75000 },
-      { address: '0x8765...4321', name: 'Bob', salary: 85000 },
-      { address: '0xabcd...efgh', name: 'Carol', salary: 95000, delegatedTo: '0x9999...1111', delegationExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
-    ];
-    setMockEmployees(demoEmployees);
-    setMockCurrentEmployee(demoEmployees[0]);
-    setMockBudgetPublic(false);
-    showToast('Demo data loaded! 3 employees added.', 'success', ['FHE.allow()', 'FHE.allowThis()']);
+  // Demo actions
+  const handleStoreData = () => {
+    setHasStoredData(true);
+    showToast('Encrypted data stored on-chain!', 'success', 'TFHE.asEuint64()');
   };
 
-  // Mock handlers
-  const handleMockAddEmployee = () => {
-    if (!newEmployeeAddress || !salaryAmount) {
-      showToast('Please fill in all fields', 'warning');
+  const handleDelegate = () => {
+    if (!delegateAddress) {
+      showToast('Enter delegate address', 'warning');
       return;
     }
-    const newEmployee: MockEmployee = {
-      address: newEmployeeAddress.slice(0, 6) + '...' + newEmployeeAddress.slice(-4),
-      name: `Employee ${mockEmployees.length + 1}`,
-      salary: parseInt(salaryAmount),
-    };
-    setMockEmployees(prev => [...prev, newEmployee]);
-    setNewEmployeeAddress('');
-    setSalaryAmount('');
-    showToast(`Employee added with salary $${salaryAmount}`, 'success', ['FHE.allow()', 'FHE.allowThis()']);
+    const expiry = new Date(Date.now() + delegationDays * 24 * 60 * 60 * 1000);
+    setDelegation({
+      delegate: delegateAddress,
+      expiry,
+      isActive: true
+    });
+    showToast(`Delegated for ${delegationDays} days!`, 'success', 'TFHE.delegateUserDecryption()');
   };
 
-  const handleMockRevealBudget = () => {
-    setMockBudgetPublic(true);
-    showToast('Budget revealed publicly!', 'success', ['FHE.makePubliclyDecryptable()']);
+  const handleRevoke = () => {
+    setDelegation(null);
+    showToast('Delegation revoked!', 'success', 'TFHE.revokeUserDecryptionDelegation()');
   };
 
-  const handleMockDelegate = () => {
-    if (!delegateAddress || !mockCurrentEmployee) {
-      showToast('Please enter delegate address', 'warning');
-      return;
+  const handleCheckExpiry = () => {
+    if (delegation) {
+      showToast(`Expires: ${delegation.expiry.toLocaleDateString()}`, 'info', 'TFHE.getDelegatedUserDecryptionExpirationDate()');
+    } else {
+      showToast('No active delegation', 'warning');
     }
-    const updated = { ...mockCurrentEmployee, delegatedTo: delegateAddress, delegationExpiry: new Date(Date.now() + delegationDays * 24 * 60 * 60 * 1000) };
-    setMockCurrentEmployee(updated);
-    setMockEmployees(prev => prev.map(e => e.address === mockCurrentEmployee.address ? updated : e));
-    showToast(`Delegated to ${delegateAddress.slice(0, 8)}... for ${delegationDays} days`, 'success', ['FHE.delegateUserDecryption()']);
   };
 
-  const handleMockRevoke = () => {
-    if (!mockCurrentEmployee) return;
-    const updated = { ...mockCurrentEmployee, delegatedTo: undefined, delegationExpiry: undefined };
-    setMockCurrentEmployee(updated);
-    setMockEmployees(prev => prev.map(e => e.address === mockCurrentEmployee.address ? updated : e));
-    showToast('Delegation revoked', 'success', ['FHE.revokeUserDecryptionDelegation()']);
+  const handleCheckActive = () => {
+    if (delegation?.isActive) {
+      showToast('Delegation is ACTIVE', 'success', 'TFHE.isDelegatedForUserDecryption()');
+    } else {
+      showToast('No active delegation', 'warning');
+    }
   };
 
-  const totalBudget = mockEmployees.reduce((sum, e) => sum + e.salary, 0);
+  const loadDemo = () => {
+    setHasStoredData(true);
+    setStoredValue(75000);
+    setDelegation({
+      delegate: '0x9999...Accountant',
+      expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true
+    });
+    showToast('Demo loaded: Alice with active delegation', 'success');
+  };
 
   return (
     <div className="dashboard">
-      {/* Network Status Bar */}
+      {/* Network Bar */}
       <div className="network-bar">
         <div className="network-status">
           {isConnected ? (
@@ -139,25 +129,11 @@ export function Dashboard() {
             </>
           )}
         </div>
-        <div className="mode-toggle">
-          <button
-            className={`mode-btn ${mockMode ? 'active' : ''}`}
-            onClick={() => setMockMode(true)}
-          >
-            <Zap size={14} />
-            Mock Mode
-          </button>
-          <button
-            className={`mode-btn ${!mockMode ? 'active' : ''}`}
-            onClick={() => setMockMode(false)}
-            disabled={!isZamaNetwork}
-            title={!isZamaNetwork ? 'Connect to Zama network' : ''}
-          >
-            <Shield size={14} />
-            Live Mode
-          </button>
+        <div className="mode-badge">
+          <Zap size={14} />
+          {mockMode ? 'Interactive Demo' : 'Live Mode'}
         </div>
-        <button className="demo-btn" onClick={loadDemoData}>
+        <button className="demo-btn" onClick={loadDemo}>
           <Play size={14} />
           Load Demo
         </button>
@@ -170,301 +146,214 @@ export function Dashboard() {
             <CheckCircle size={16} />
             <div className="toast-content">
               <span>{toast.message}</span>
-              {toast.aclFunctions && (
-                <small>ACL: {toast.aclFunctions.join(', ')}</small>
-              )}
+              {toast.fn && <small>→ {toast.fn}</small>}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Role Selector */}
-      <div className="role-selector">
-        <button
-          className={`role-btn ${activeRole === 'hr' ? 'active' : ''}`}
-          onClick={() => setActiveRole('hr')}
-        >
-          <Briefcase size={20} />
-          HR Manager
-        </button>
-        <button
-          className={`role-btn ${activeRole === 'employee' ? 'active' : ''}`}
-          onClick={() => { setActiveRole('employee'); if (mockEmployees.length > 0) setMockCurrentEmployee(mockEmployees[0]); }}
-        >
-          <Users size={20} />
-          Employee
-        </button>
-        <button
-          className={`role-btn ${activeRole === 'accountant' ? 'active' : ''}`}
-          onClick={() => setActiveRole('accountant')}
-        >
-          <Calculator size={20} />
-          Accountant
-        </button>
+      {/* Hero Section */}
+      <div className="hero-section">
+        <div className="hero-badge">FHEVM Feature Demo</div>
+        <h2>User Decryption Delegation</h2>
+        <p>Time-limited, revocable access to your encrypted data</p>
       </div>
 
-      {/* Stats */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <Users size={24} />
-          <div className="stat-content">
-            <span className="stat-value">{mockMode ? mockEmployees.length : '0'}</span>
-            <span className="stat-label">Employees</span>
-          </div>
+      {/* The 4 Functions */}
+      <div className="functions-grid">
+        <div className="function-card">
+          <div className="fn-number">1</div>
+          <code>delegateUserDecryption()</code>
+          <span>Grant time-limited access</span>
         </div>
-        <div className="stat-card">
-          <Shield size={24} />
-          <div className="stat-content">
-            <span className="stat-value">{mockMode ? (mockBudgetPublic ? 'Public' : 'Private') : 'Private'}</span>
-            <span className="stat-label">Budget Status</span>
-          </div>
+        <div className="function-card">
+          <div className="fn-number">2</div>
+          <code>revokeUserDecryptionDelegation()</code>
+          <span>Revoke access early</span>
         </div>
-        <div className="stat-card">
-          <Lock size={24} />
-          <div className="stat-content">
-            <span className="stat-value">{mockMode && mockBudgetPublic ? `$${totalBudget.toLocaleString()}` : '••••••'}</span>
-            <span className="stat-label">Total Budget</span>
-          </div>
+        <div className="function-card">
+          <div className="fn-number">3</div>
+          <code>getDelegated...ExpirationDate()</code>
+          <span>Check when it expires</span>
+        </div>
+        <div className="function-card">
+          <div className="fn-number">4</div>
+          <code>isDelegatedForUserDecryption()</code>
+          <span>Check if active</span>
         </div>
       </div>
 
-      {/* Role Panels */}
-      {activeRole === 'hr' && (
-        <div className="panel hr-panel">
-          <h3><Briefcase size={20} /> HR Manager Panel</h3>
-
-          <div className="action-card">
-            <h4>Add New Employee</h4>
-            <p className="description">Add an employee with encrypted salary (ACL #1, #2)</p>
-            <div className="input-group">
-              <input
-                type="text"
-                placeholder="Employee Address (0x...)"
-                value={newEmployeeAddress}
-                onChange={(e) => setNewEmployeeAddress(e.target.value)}
-              />
-              <input
-                type="number"
-                placeholder="Salary Amount"
-                value={salaryAmount}
-                onChange={(e) => setSalaryAmount(e.target.value)}
-              />
+      {/* Tax Season Flow */}
+      <div className="flow-section">
+        <h3><FileText size={20} /> Tax Season Scenario</h3>
+        <div className="flow-diagram">
+          <div className="flow-step">
+            <div className="step-icon alice">
+              <Lock size={20} />
             </div>
-            <button className="action-btn primary" onClick={handleMockAddEmployee}>
-              <UserPlus size={16} />
-              Add Employee
-            </button>
+            <span>Alice stores encrypted salary</span>
           </div>
-
-          {mockEmployees.length > 0 && (
-            <div className="action-card">
-              <h4>Employee List</h4>
-              <div className="employee-list">
-                {mockEmployees.map((emp, i) => (
-                  <div key={i} className="employee-item">
-                    <span className="emp-name">{emp.name}</span>
-                    <span className="emp-address">{emp.address}</span>
-                    <span className="emp-salary">${emp.salary.toLocaleString()}</span>
-                  </div>
-                ))}
-              </div>
+          <ArrowRight size={24} className="flow-arrow" />
+          <div className="flow-step">
+            <div className="step-icon delegate">
+              <UserCheck size={20} />
             </div>
-          )}
-
-          <div className="action-card">
-            <h4>Reveal Total Budget</h4>
-            <p className="description">Make budget publicly decryptable (ACL #6)</p>
-            <button
-              className="action-btn danger"
-              onClick={handleMockRevealBudget}
-              disabled={mockBudgetPublic}
-            >
-              {mockBudgetPublic ? (
-                <>
-                  <Eye size={16} />
-                  Already Public (${totalBudget.toLocaleString()})
-                </>
-              ) : (
-                <>
-                  <Unlock size={16} />
-                  Reveal Budget
-                </>
-              )}
-            </button>
+            <span>Delegates to accountant (30 days)</span>
           </div>
-
-          <div className="acl-info">
-            <h4>ACL Functions Used:</h4>
-            <ul>
-              <li><CheckCircle size={14} /> FHE.allow() - Grant permanent access</li>
-              <li><CheckCircle size={14} /> FHE.allowThis() - Contract self-access</li>
-              <li><CheckCircle size={14} /> FHE.allowTransient() - Same-tx access</li>
-              <li><CheckCircle size={14} /> FHE.makePubliclyDecryptable() - Reveal budget</li>
-            </ul>
+          <ArrowRight size={24} className="flow-arrow" />
+          <div className="flow-step">
+            <div className="step-icon accountant">
+              <Unlock size={20} />
+            </div>
+            <span>Accountant decrypts & files taxes</span>
+          </div>
+          <ArrowRight size={24} className="flow-arrow" />
+          <div className="flow-step">
+            <div className="step-icon revoke">
+              <UserX size={20} />
+            </div>
+            <span>Alice revokes or access expires</span>
           </div>
         </div>
-      )}
+      </div>
 
-      {activeRole === 'employee' && (
-        <div className="panel employee-panel">
-          <h3><Users size={20} /> Employee Panel</h3>
+      {/* Interactive Demo */}
+      <div className="demo-section">
+        <h3><Shield size={20} /> Interactive Demo</h3>
 
-          {mockEmployees.length > 0 && (
-            <div className="action-card">
-              <h4>Select Employee</h4>
-              <div className="employee-select">
-                {mockEmployees.map((emp, i) => (
-                  <button
-                    key={i}
-                    className={`emp-select-btn ${mockCurrentEmployee?.address === emp.address ? 'active' : ''}`}
-                    onClick={() => setMockCurrentEmployee(emp)}
-                  >
-                    {emp.name}
-                  </button>
-                ))}
+        {/* Step 1: Store Data */}
+        <div className="demo-card">
+          <div className="demo-header">
+            <span className="step-badge">Step 1</span>
+            <h4>Store Encrypted Data</h4>
+          </div>
+          {!hasStoredData ? (
+            <div className="demo-action">
+              <p>First, store your encrypted salary on-chain</p>
+              <div className="input-row">
+                <input
+                  type="number"
+                  value={storedValue}
+                  onChange={(e) => setStoredValue(Number(e.target.value))}
+                  placeholder="Salary amount"
+                />
+                <button className="action-btn primary" onClick={handleStoreData}>
+                  <Lock size={16} />
+                  Store Encrypted
+                </button>
               </div>
             </div>
-          )}
-
-          <div className="action-card">
-            <h4>My Salary</h4>
-            <p className="description">View your encrypted salary (ACL #4, #5)</p>
-            <div className="salary-display">
-              {mockCurrentEmployee ? (
-                <>
-                  <Eye size={24} />
-                  <span>${mockCurrentEmployee.salary.toLocaleString()}</span>
-                  <small>Decrypted via FHE.isSenderAllowed()</small>
-                </>
-              ) : (
-                <>
-                  <EyeOff size={24} />
-                  <span>••••••</span>
-                  <small>Load demo or add employee first</small>
-                </>
-              )}
+          ) : (
+            <div className="demo-complete">
+              <CheckCircle size={20} className="success" />
+              <span>Data stored: <strong>${storedValue.toLocaleString()}</strong> (encrypted)</span>
             </div>
-          </div>
+          )}
+        </div>
 
-          <div className="action-card highlight">
-            <h4>Delegate Salary Access</h4>
-            <p className="description">Allow someone to decrypt your salary (ACL #8) - <strong>Unique Feature!</strong></p>
+        {/* Step 2: Delegate */}
+        <div className={`demo-card ${!hasStoredData ? 'disabled' : ''}`}>
+          <div className="demo-header">
+            <span className="step-badge">Step 2</span>
+            <h4>Delegate Decryption Rights</h4>
+          </div>
+          <div className="demo-action">
             <div className="input-group">
               <input
                 type="text"
-                placeholder="Delegate Address (0x...)"
+                placeholder="Accountant address (0x...)"
                 value={delegateAddress}
                 onChange={(e) => setDelegateAddress(e.target.value)}
+                disabled={!hasStoredData}
               />
-              <div className="slider-group">
-                <label>Duration: {delegationDays} days</label>
+              <div className="slider-row">
+                <label><Calendar size={14} /> Duration: <strong>{delegationDays} days</strong></label>
                 <input
                   type="range"
                   min="1"
                   max="365"
                   value={delegationDays}
                   onChange={(e) => setDelegationDays(Number(e.target.value))}
+                  disabled={!hasStoredData}
                 />
               </div>
             </div>
-            {mockCurrentEmployee?.delegatedTo && (
-              <div className="delegation-status">
-                <CheckCircle size={14} className="active" />
-                <span>Delegated to {mockCurrentEmployee.delegatedTo}</span>
-                <small>Expires: {mockCurrentEmployee.delegationExpiry?.toLocaleDateString()}</small>
+            <button
+              className="action-btn primary full"
+              onClick={handleDelegate}
+              disabled={!hasStoredData}
+            >
+              <UserCheck size={16} />
+              Delegate Access
+            </button>
+          </div>
+        </div>
+
+        {/* Delegation Status */}
+        {delegation && (
+          <div className="delegation-status-card">
+            <div className="status-header">
+              <CheckCircle size={20} className="active" />
+              <h4>Active Delegation</h4>
+            </div>
+            <div className="status-details">
+              <div className="status-row">
+                <span>Delegate:</span>
+                <code>{delegation.delegate}</code>
               </div>
-            )}
-            <div className="btn-group">
-              <button
-                className="action-btn primary"
-                onClick={handleMockDelegate}
-                disabled={!mockCurrentEmployee}
-              >
-                <CheckCircle size={16} />
-                Delegate Access
+              <div className="status-row">
+                <span>Expires:</span>
+                <span className="expiry">{delegation.expiry.toLocaleDateString()}</span>
+              </div>
+              <div className="status-row">
+                <span>Status:</span>
+                <span className="active-badge">ACTIVE</span>
+              </div>
+            </div>
+            <div className="status-actions">
+              <button className="action-btn secondary" onClick={handleCheckExpiry}>
+                <Clock size={16} />
+                Check Expiry
               </button>
-              <button
-                className="action-btn danger"
-                onClick={handleMockRevoke}
-                disabled={!mockCurrentEmployee?.delegatedTo}
-              >
+              <button className="action-btn secondary" onClick={handleCheckActive}>
+                <CheckCircle size={16} />
+                Check Active
+              </button>
+              <button className="action-btn danger" onClick={handleRevoke}>
                 <XCircle size={16} />
                 Revoke
               </button>
             </div>
           </div>
+        )}
+      </div>
 
-          <div className="acl-info">
-            <h4>ACL Functions Used:</h4>
-            <ul>
-              <li><CheckCircle size={14} /> FHE.isAllowed() - Check access</li>
-              <li><CheckCircle size={14} /> FHE.isSenderAllowed() - Verify caller</li>
-              <li><CheckCircle size={14} className="highlight" /> FHE.delegateUserDecryption() - Delegate!</li>
-              <li><CheckCircle size={14} className="highlight" /> FHE.revokeUserDecryptionDelegation()</li>
-            </ul>
+      {/* Why This Matters */}
+      <div className="benefits-section">
+        <h3>Why User Decryption Delegation?</h3>
+        <div className="benefits-grid">
+          <div className="benefit-card">
+            <Clock size={24} />
+            <h4>Time-Limited</h4>
+            <p>Auto-expires after specified date</p>
+          </div>
+          <div className="benefit-card">
+            <Shield size={24} />
+            <h4>User-Controlled</h4>
+            <p>Only you can delegate your data</p>
+          </div>
+          <div className="benefit-card">
+            <XCircle size={24} />
+            <h4>Revocable</h4>
+            <p>Cancel anytime before expiry</p>
+          </div>
+          <div className="benefit-card">
+            <Lock size={24} />
+            <h4>Contract-Scoped</h4>
+            <p>Only for specific contract data</p>
           </div>
         </div>
-      )}
-
-      {activeRole === 'accountant' && (
-        <div className="panel accountant-panel">
-          <h3><Calculator size={20} /> Accountant Panel</h3>
-
-          <div className="action-card">
-            <h4>Delegated Access Status</h4>
-            <p className="description">Check if you have delegated access (ACL #10, #11)</p>
-            <div className="status-display">
-              {mockEmployees.filter(e => e.delegatedTo).map((emp, i) => (
-                <div key={i} className="delegation-item">
-                  <div className="status-item">
-                    <span>{emp.name} delegated access:</span>
-                    <span className="status active">
-                      <CheckCircle size={14} /> Active
-                    </span>
-                  </div>
-                  <div className="status-item">
-                    <span>Expiration:</span>
-                    <span className="status">{emp.delegationExpiry?.toLocaleDateString()}</span>
-                  </div>
-                </div>
-              ))}
-              {mockEmployees.filter(e => e.delegatedTo).length === 0 && (
-                <div className="status-item">
-                  <span>No active delegations</span>
-                  <span className="status pending">Employee must delegate first</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="action-card">
-            <h4>View Delegated Salaries</h4>
-            <p className="description">Decrypt salary if delegation is active</p>
-            {mockEmployees.filter(e => e.delegatedTo).map((emp, i) => (
-              <div key={i} className="salary-display delegated">
-                <Eye size={24} />
-                <span>${emp.salary.toLocaleString()}</span>
-                <small>{emp.name}'s salary (delegated)</small>
-              </div>
-            ))}
-            {mockEmployees.filter(e => e.delegatedTo).length === 0 && (
-              <div className="salary-display">
-                <Lock size={24} />
-                <span>Access Required</span>
-                <small>Employee must delegate access first</small>
-              </div>
-            )}
-          </div>
-
-          <div className="acl-info">
-            <h4>ACL Functions Used:</h4>
-            <ul>
-              <li><CheckCircle size={14} className="highlight" /> FHE.isDelegatedForUserDecryption()</li>
-              <li><CheckCircle size={14} className="highlight" /> FHE.getDelegatedUserDecryptionExpirationDate()</li>
-            </ul>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

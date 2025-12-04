@@ -1,153 +1,164 @@
-# FHEVM User Decryption Delegation Example
+# User Decryption Delegation
 
-![Tests](https://img.shields.io/badge/tests-32%20passing-brightgreen)
-![Feature](https://img.shields.io/badge/feature-User%20Delegation-purple)
-![Solidity](https://img.shields.io/badge/solidity-0.8.24-blue)
+<div align="center">
 
-> **The only example demonstrating User Decryption Delegation** - allowing users to delegate their encrypted data access to third parties with time-limited permissions.
+![FHEVM](https://img.shields.io/badge/FHEVM-Zama-purple?style=for-the-badge)
+![Solidity](https://img.shields.io/badge/Solidity-0.8.24-blue?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-## Live Demo
+**The first example demonstrating User Decryption Delegation in FHEVM**
 
-**[Try the Interactive Demo](https://fhevm-acl-example.vercel.app)** - No wallet required, mock mode available!
+*Allow users to delegate their encrypted data access with time-limited, revocable permissions*
 
-## The Feature: User Decryption Delegation
+[Live Demo](https://fhevm-acl-example.vercel.app) · [Documentation](https://docs.zama.ai/fhevm)
 
-This example demonstrates the **4 delegation functions** that enable user-controlled data sharing:
+</div>
+
+---
+
+## The Problem
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│   Alice has encrypted data on-chain.                                        │
+│   She needs to share it with her accountant for tax filing.                 │
+│                                                                             │
+│   Traditional approaches fail:                                              │
+│                                                                             │
+│   ❌ Permanent access? Too risky - accountant keeps access forever          │
+│   ❌ Admin controls sharing? Alice loses sovereignty over her data          │
+│   ❌ Share the private key? Compromises all future data                     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+## The Solution
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│   USER DECRYPTION DELEGATION                                                │
+│                                                                             │
+│   ✅ Time-limited    → Auto-expires after specified date                    │
+│   ✅ User-controlled → Only the data owner can delegate                     │
+│   ✅ Revocable       → Cancel anytime before expiry                         │
+│   ✅ Contract-scoped → Only for specific contract's data                    │
+│                                                                             │
+│   Alice delegates for 30 days → Accountant files taxes → Access expires     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+## The 4 Functions
 
 ```solidity
-// 1. Delegate: Allow someone to decrypt your data
-FHE.delegateUserDecryption(delegate, contractAddress, expiryTimestamp);
+// 1. DELEGATE: "Allow accountant to decrypt my data for 30 days"
+TFHE.delegateUserDecryption(accountant, address(this), expiry);
 
-// 2. Revoke: Cancel access before expiry
-FHE.revokeUserDecryptionDelegation(delegate, contractAddress);
+// 2. REVOKE: "Remove access immediately"
+TFHE.revokeUserDecryptionDelegation(accountant, address(this));
 
-// 3. Check Expiry: When does access end?
-FHE.getDelegatedUserDecryptionExpirationDate(delegator, delegate, contract);
+// 3. CHECK EXPIRY: "When does this delegation end?"
+TFHE.getDelegatedUserDecryptionExpirationDate(alice, accountant, address(this));
 
-// 4. Verify: Is delegation currently active?
-FHE.isDelegatedForUserDecryption(delegator, delegate, contract, handle);
-```
-
-## Real-World Use Case: Tax Season
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     TAX SEASON SCENARIO                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Alice (Employee) has encrypted salary on-chain                 │
-│                                                                 │
-│  Tax season arrives - she needs to share with accountant:       │
-│                                                                 │
-│  1. Alice delegates for 30 days:                                │
-│     delegateSalaryAccess(accountant, 30 days)                   │
-│                                                                 │
-│  2. Accountant can now decrypt Alice's salary                   │
-│                                                                 │
-│  3. After filing, Alice revokes early:                          │
-│     revokeSalaryDelegation(accountant)                          │
-│                                                                 │
-│  Key Properties:                                                │
-│  • Time-limited (auto-expires)                                  │
-│  • User-controlled (not employer)                               │
-│  • Revocable anytime                                            │
-│  • Contract-scoped                                              │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+// 4. IS ACTIVE: "Can accountant still decrypt?"
+TFHE.isDelegatedForUserDecryption(alice, accountant, address(this), dataHandle);
 ```
 
 ## Quick Start
 
 ```bash
-# Clone and install
 git clone https://github.com/Himess/fhevm-acl-example.git
 cd fhevm-acl-example
-
-# Run tests (from library-solidity)
-npm install
-npm run compile
-npx hardhat test test/confidentialSalary/ConfidentialSalary.ts
 ```
 
-## Contract Implementation
+## Contract
 
 ```solidity
-// Employee delegates salary access to accountant
-function delegateSalaryAccess(address delegate, uint64 expiry) external {
-    require(isEmployee[msg.sender], "Not an employee");
-    require(delegate != address(0), "Invalid address");
+contract UserDecryptionDelegation {
 
-    // THE KEY FUNCTION - User Decryption Delegation
-    FHE.delegateUserDecryption(delegate, address(this), expiry);
+    mapping(address => euint64) private userData;
 
-    emit DelegationGranted(msg.sender, delegate, expiry);
+    // Delegate decryption rights
+    function delegate(address delegate, uint64 durationDays) external {
+        uint64 expiry = uint64(block.timestamp) + (durationDays * 1 days);
+        TFHE.delegateUserDecryption(delegate, address(this), expiry);
+    }
+
+    // Revoke before expiry
+    function revoke(address delegate) external {
+        TFHE.revokeUserDecryptionDelegation(delegate, address(this));
+    }
+
+    // Check expiration
+    function getExpiry(address delegator, address delegate) external view returns (uint64) {
+        return TFHE.getDelegatedUserDecryptionExpirationDate(delegator, delegate, address(this));
+    }
+
+    // Check if active
+    function isActive(address delegator, address delegate) external view returns (bool) {
+        return TFHE.isDelegatedForUserDecryption(delegator, delegate, address(this), userData[delegator]);
+    }
 }
-
-// Employee revokes access before expiry
-function revokeSalaryDelegation(address delegate) external {
-    require(isEmployee[msg.sender], "Not an employee");
-
-    FHE.revokeUserDecryptionDelegation(delegate, address(this));
-
-    emit DelegationRevoked(msg.sender, delegate);
-}
-
-// Check if delegation is active
-function isDelegationActive(address delegator, address delegate) external view returns (bool) {
-    euint64 salaryHandle = salaries[delegator];
-    return FHE.isDelegatedForUserDecryption(delegator, delegate, address(this), salaryHandle);
-}
 ```
 
-## Why User Decryption Delegation?
-
-| Traditional Access | User Delegation |
-|--------------------|-----------------|
-| Admin controls who sees data | **User** controls who sees their data |
-| Permanent access grants | **Time-limited** with auto-expiry |
-| Requires admin to revoke | User can **revoke anytime** |
-| All-or-nothing | **Contract-scoped** (only specific data) |
-
-## Test Results
+## Use Case: Tax Season
 
 ```
-  User Decryption Delegation
-    ✓ should delegate salary access to accountant
-    ✓ should revoke delegation before expiry
-    ✓ should check delegation expiration date
-    ✓ should verify active delegation status
-    ✓ should revert delegation for non-employee
-    ✓ should revert delegation to zero address
+                    ┌──────────────────────────────────────┐
+                    │         TAX SEASON FLOW              │
+                    └──────────────────────────────────────┘
 
-  32 passing
+     ALICE                                           ACCOUNTANT
+       │                                                  │
+       │  1. Store encrypted salary                       │
+       │  ─────────────────────────►                      │
+       │                                                  │
+       │  2. Delegate for 30 days                         │
+       │  ════════════════════════════════════════════►   │
+       │                                                  │
+       │                              3. Request decrypt  │
+       │                              via Gateway         │
+       │                                   │              │
+       │                                   ▼              │
+       │                              ┌─────────┐         │
+       │                              │ Gateway │         │
+       │                              └─────────┘         │
+       │                                   │              │
+       │                              4. Receive salary   │
+       │                              ◄────┘              │
+       │                                                  │
+       │  5. Taxes filed, revoke early                    │
+       │  ════════════════════════════════════════════►   │
+       │                                                  │
+       │                              ❌ Access revoked   │
+       │                                                  │
 ```
 
-## Project Structure
+## Why This Matters
 
-```
-├── contracts/
-│   └── ConfidentialSalary.sol    # Delegation implementation
-├── test/
-│   └── ConfidentialSalary.ts     # Comprehensive tests
-├── frontend/                      # Interactive demo
-└── README.md
-```
+| Without Delegation | With Delegation |
+|-------------------|-----------------|
+| Admin controls who sees data | **User** controls their data |
+| Permanent access only | **Time-limited** auto-expiry |
+| Can't revoke without admin | **Instant** user-controlled revoke |
+| All-or-nothing access | **Contract-scoped** granularity |
 
-## Security Considerations
-
-### Delegation Risks & Mitigations
+## Security
 
 | Risk | Mitigation |
 |------|------------|
-| Long expiry periods | Enforce MAX_DELEGATION_PERIOD |
-| Delegation to malicious contract | Users should delegate to known EOAs |
+| Long delegation periods | Enforce max duration (365 days) |
+| Delegation to malicious contract | Delegate only to trusted EOAs |
 | Front-running revocation | Use shorter expiry periods |
-
-## Resources
-
-- [FHEVM Documentation](https://docs.zama.ai/fhevm)
-- [ACL Guide](https://docs.zama.ai/fhevm/fundamentals/acl)
 
 ---
 
-**Zama Bounty Track Submission** - User Decryption Delegation Example
+<div align="center">
+
+**Zama Bounty Track Submission**
+
+*User Decryption Delegation - Giving users control over their encrypted data*
+
+</div>

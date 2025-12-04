@@ -5,7 +5,6 @@ import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { config } from './config/wagmi';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
-import { ACLReference } from './components/ACLReference';
 import './App.css';
 
 const queryClient = new QueryClient();
@@ -23,15 +22,18 @@ function App() {
             <Header />
             <main className="main">
               <Dashboard />
-              <ACLReference />
             </main>
             <footer className="footer">
               <p>
-                <strong>Zama Bounty Track</strong> - Demonstrating all 11 FHEVM ACL functions
+                <strong>Zama Bounty Track</strong> — User Decryption Delegation Demo
               </p>
               <p>
                 <a href="https://github.com/Himess/fhevm-acl-example" target="_blank" rel="noopener noreferrer">
                   View Source on GitHub
+                </a>
+                {' · '}
+                <a href="https://docs.zama.ai/fhevm" target="_blank" rel="noopener noreferrer">
+                  FHEVM Docs
                 </a>
               </p>
             </footer>
