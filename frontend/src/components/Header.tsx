@@ -1,14 +1,14 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Shield } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 
 export function Header() {
   return (
     <header className="header">
       <div className="logo">
-        <Shield size={32} />
+        <KeyRound size={32} />
         <div>
-          <h1>Confidential Salary</h1>
-          <span className="tagline">FHEVM ACL Demo - All 11 Functions</span>
+          <h1>User Decryption Delegation</h1>
+          <span className="tagline">FHEVM Feature Demo</span>
         </div>
       </div>
       <ConnectButton />

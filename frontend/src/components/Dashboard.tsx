@@ -15,7 +15,9 @@ import {
   Play,
   Calendar,
   FileText,
-  ArrowRight
+  ArrowRight,
+  RotateCcw,
+  Info
 } from 'lucide-react';
 
 interface Toast {
@@ -40,7 +42,6 @@ export function Dashboard() {
   const [delegationDays, setDelegationDays] = useState(30);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [toastId, setToastId] = useState(0);
-  const [mockMode] = useState(true);
 
   // Demo state
   const [hasStoredData, setHasStoredData] = useState(false);
@@ -48,7 +49,7 @@ export function Dashboard() {
   const [delegation, setDelegation] = useState<DelegationInfo | null>(null);
 
   // Network info
-  const networkName = chainId === 9000 ? 'Zama Devnet' : chainId === 8009 ? 'Zama Testnet' : chainId === 11155111 ? 'Sepolia' : 'Unknown';
+  const networkName = chainId === 9000 ? 'Zama Devnet' : chainId === 8009 ? 'Zama Testnet' : chainId === 11155111 ? 'Sepolia' : 'Demo Mode';
 
   // Toast helper
   const showToast = (message: string, type: 'success' | 'info' | 'warning', fn?: string) => {
@@ -62,6 +63,10 @@ export function Dashboard() {
 
   // Demo actions
   const handleStoreData = () => {
+    if (storedValue <= 0) {
+      showToast('Enter a valid amount', 'warning');
+      return;
+    }
     setHasStoredData(true);
     showToast('Encrypted data stored on-chain!', 'success', 'TFHE.asEuint64()');
   };
@@ -71,12 +76,19 @@ export function Dashboard() {
       showToast('Enter delegate address', 'warning');
       return;
     }
+    if (!delegateAddress.startsWith('0x')) {
+      showToast('Address must start with 0x', 'warning');
+      return;
+    }
     const expiry = new Date(Date.now() + delegationDays * 24 * 60 * 60 * 1000);
     setDelegation({
-      delegate: delegateAddress,
+      delegate: delegateAddress.length > 15
+        ? `${delegateAddress.slice(0, 6)}...${delegateAddress.slice(-4)}`
+        : delegateAddress,
       expiry,
       isActive: true
     });
+    setDelegateAddress('');
     showToast(`Delegated for ${delegationDays} days!`, 'success', 'TFHE.delegateUserDecryption()');
   };
 
@@ -87,7 +99,8 @@ export function Dashboard() {
 
   const handleCheckExpiry = () => {
     if (delegation) {
-      showToast(`Expires: ${delegation.expiry.toLocaleDateString()}`, 'info', 'TFHE.getDelegatedUserDecryptionExpirationDate()');
+      const daysLeft = Math.ceil((delegation.expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      showToast(`Expires: ${delegation.expiry.toLocaleDateString()} (${daysLeft} days left)`, 'info', 'TFHE.getDelegatedUserDecryptionExpirationDate()');
     } else {
       showToast('No active delegation', 'warning');
     }
@@ -105,12 +118,26 @@ export function Dashboard() {
     setHasStoredData(true);
     setStoredValue(75000);
     setDelegation({
-      delegate: '0x9999...Accountant',
+      delegate: '0x9999...1234',
       expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       isActive: true
     });
-    showToast('Demo loaded: Alice with active delegation', 'success');
+    showToast('Demo loaded: Alice with active delegation to accountant', 'success');
   };
+
+  const resetDemo = () => {
+    setHasStoredData(false);
+    setStoredValue(75000);
+    setDelegation(null);
+    setDelegateAddress('');
+    setDelegationDays(30);
+    showToast('Demo reset', 'info');
+  };
+
+  // Calculate days remaining
+  const daysRemaining = delegation
+    ? Math.max(0, Math.ceil((delegation.expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0;
 
   return (
     <div className="dashboard">
@@ -125,28 +152,38 @@ export function Dashboard() {
           ) : (
             <>
               <WifiOff size={16} className="disconnected" />
-              <span>Not Connected</span>
+              <span>{networkName}</span>
             </>
           )}
         </div>
         <div className="mode-badge">
           <Zap size={14} />
-          {mockMode ? 'Interactive Demo' : 'Live Mode'}
+          Interactive Demo
         </div>
-        <button className="demo-btn" onClick={loadDemo}>
-          <Play size={14} />
-          Load Demo
-        </button>
+        <div className="demo-buttons">
+          <button className="demo-btn" onClick={loadDemo}>
+            <Play size={14} />
+            Load Demo
+          </button>
+          {(hasStoredData || delegation) && (
+            <button className="reset-btn" onClick={resetDemo}>
+              <RotateCcw size={14} />
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Toast Notifications */}
       <div className="toast-container">
         {toasts.map(toast => (
           <div key={toast.id} className={`toast toast-${toast.type}`}>
-            <CheckCircle size={16} />
+            {toast.type === 'success' && <CheckCircle size={16} />}
+            {toast.type === 'info' && <Info size={16} />}
+            {toast.type === 'warning' && <XCircle size={16} />}
             <div className="toast-content">
               <span>{toast.message}</span>
-              {toast.fn && <small>→ {toast.fn}</small>}
+              {toast.fn && <small>{toast.fn}</small>}
             </div>
           </div>
         ))}
@@ -161,24 +198,24 @@ export function Dashboard() {
 
       {/* The 4 Functions */}
       <div className="functions-grid">
-        <div className="function-card">
+        <div className={`function-card ${delegation ? 'used' : ''}`}>
           <div className="fn-number">1</div>
           <code>delegateUserDecryption()</code>
           <span>Grant time-limited access</span>
         </div>
         <div className="function-card">
           <div className="fn-number">2</div>
-          <code>revokeUserDecryptionDelegation()</code>
+          <code>revokeUserDecryption...()</code>
           <span>Revoke access early</span>
         </div>
         <div className="function-card">
           <div className="fn-number">3</div>
-          <code>getDelegated...ExpirationDate()</code>
+          <code>getDelegated...Date()</code>
           <span>Check when it expires</span>
         </div>
         <div className="function-card">
           <div className="fn-number">4</div>
-          <code>isDelegatedForUserDecryption()</code>
+          <code>isDelegatedFor...()</code>
           <span>Check if active</span>
         </div>
       </div>
@@ -187,14 +224,14 @@ export function Dashboard() {
       <div className="flow-section">
         <h3><FileText size={20} /> Tax Season Scenario</h3>
         <div className="flow-diagram">
-          <div className="flow-step">
+          <div className={`flow-step ${hasStoredData ? 'completed' : ''}`}>
             <div className="step-icon alice">
               <Lock size={20} />
             </div>
             <span>Alice stores encrypted salary</span>
           </div>
           <ArrowRight size={24} className="flow-arrow" />
-          <div className="flow-step">
+          <div className={`flow-step ${delegation ? 'completed' : ''}`}>
             <div className="step-icon delegate">
               <UserCheck size={20} />
             </div>
@@ -222,21 +259,26 @@ export function Dashboard() {
         <h3><Shield size={20} /> Interactive Demo</h3>
 
         {/* Step 1: Store Data */}
-        <div className="demo-card">
+        <div className={`demo-card ${hasStoredData ? 'completed' : ''}`}>
           <div className="demo-header">
             <span className="step-badge">Step 1</span>
             <h4>Store Encrypted Data</h4>
+            {hasStoredData && <CheckCircle size={18} className="step-check" />}
           </div>
           {!hasStoredData ? (
             <div className="demo-action">
               <p>First, store your encrypted salary on-chain</p>
               <div className="input-row">
-                <input
-                  type="number"
-                  value={storedValue}
-                  onChange={(e) => setStoredValue(Number(e.target.value))}
-                  placeholder="Salary amount"
-                />
+                <div className="input-with-prefix">
+                  <span className="prefix">$</span>
+                  <input
+                    type="number"
+                    value={storedValue}
+                    onChange={(e) => setStoredValue(Number(e.target.value))}
+                    placeholder="75000"
+                    min="1"
+                  />
+                </div>
                 <button className="action-btn primary" onClick={handleStoreData}>
                   <Lock size={16} />
                   Store Encrypted
@@ -246,47 +288,62 @@ export function Dashboard() {
           ) : (
             <div className="demo-complete">
               <CheckCircle size={20} className="success" />
-              <span>Data stored: <strong>${storedValue.toLocaleString()}</strong> (encrypted)</span>
+              <span>Data stored: <strong>${storedValue.toLocaleString()}</strong> (encrypted on-chain)</span>
             </div>
           )}
         </div>
 
         {/* Step 2: Delegate */}
-        <div className={`demo-card ${!hasStoredData ? 'disabled' : ''}`}>
+        <div className={`demo-card ${!hasStoredData ? 'disabled' : ''} ${delegation ? 'completed' : ''}`}>
           <div className="demo-header">
             <span className="step-badge">Step 2</span>
             <h4>Delegate Decryption Rights</h4>
+            {delegation && <CheckCircle size={18} className="step-check" />}
           </div>
-          <div className="demo-action">
-            <div className="input-group">
-              <input
-                type="text"
-                placeholder="Accountant address (0x...)"
-                value={delegateAddress}
-                onChange={(e) => setDelegateAddress(e.target.value)}
-                disabled={!hasStoredData}
-              />
-              <div className="slider-row">
-                <label><Calendar size={14} /> Duration: <strong>{delegationDays} days</strong></label>
+          {!delegation ? (
+            <div className="demo-action">
+              <p>Allow your accountant to decrypt your salary for tax filing</p>
+              <div className="input-group">
                 <input
-                  type="range"
-                  min="1"
-                  max="365"
-                  value={delegationDays}
-                  onChange={(e) => setDelegationDays(Number(e.target.value))}
+                  type="text"
+                  placeholder="Accountant address (0x...)"
+                  value={delegateAddress}
+                  onChange={(e) => setDelegateAddress(e.target.value)}
                   disabled={!hasStoredData}
                 />
+                <div className="slider-row">
+                  <label>
+                    <Calendar size={14} />
+                    Duration: <strong>{delegationDays} days</strong>
+                    <span className="slider-hint">
+                      (expires {new Date(Date.now() + delegationDays * 24 * 60 * 60 * 1000).toLocaleDateString()})
+                    </span>
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="365"
+                    value={delegationDays}
+                    onChange={(e) => setDelegationDays(Number(e.target.value))}
+                    disabled={!hasStoredData}
+                  />
+                </div>
               </div>
+              <button
+                className="action-btn primary full"
+                onClick={handleDelegate}
+                disabled={!hasStoredData}
+              >
+                <UserCheck size={16} />
+                Delegate Access
+              </button>
             </div>
-            <button
-              className="action-btn primary full"
-              onClick={handleDelegate}
-              disabled={!hasStoredData}
-            >
-              <UserCheck size={16} />
-              Delegate Access
-            </button>
-          </div>
+          ) : (
+            <div className="demo-complete">
+              <CheckCircle size={20} className="success" />
+              <span>Delegated to <strong>{delegation.delegate}</strong> for {daysRemaining} days</span>
+            </div>
+          )}
         </div>
 
         {/* Delegation Status */}
@@ -295,6 +352,7 @@ export function Dashboard() {
             <div className="status-header">
               <CheckCircle size={20} className="active" />
               <h4>Active Delegation</h4>
+              <span className="days-badge">{daysRemaining} days left</span>
             </div>
             <div className="status-details">
               <div className="status-row">
@@ -321,7 +379,7 @@ export function Dashboard() {
               </button>
               <button className="action-btn danger" onClick={handleRevoke}>
                 <XCircle size={16} />
-                Revoke
+                Revoke Access
               </button>
             </div>
           </div>

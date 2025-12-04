@@ -120,6 +120,11 @@ body {
   font-weight: 500;
 }
 
+.demo-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .demo-btn {
   display: flex;
   align-items: center;
@@ -137,6 +142,27 @@ body {
 
 .demo-btn:hover {
   opacity: 0.9;
+}
+
+.reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.reset-btn:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: white;
 }
 
 /* Toast Notifications */
@@ -368,6 +394,15 @@ body {
   max-width: 130px;
 }
 
+.flow-step.completed .step-icon {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.flow-step.completed span {
+  color: var(--success);
+  font-weight: 500;
+}
+
 .flow-arrow {
   color: var(--border);
   flex-shrink: 0;
@@ -419,6 +454,15 @@ body {
 
 .demo-header h4 {
   font-size: 1rem;
+  flex: 1;
+}
+
+.step-check {
+  color: var(--success);
+}
+
+.demo-card.completed {
+  border: 1px solid var(--success);
 }
 
 .demo-action p {
@@ -446,6 +490,39 @@ body {
 .input-row input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.input-with-prefix {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.input-with-prefix:focus-within {
+  border-color: var(--accent);
+}
+
+.input-with-prefix .prefix {
+  padding: 0.75rem 0.75rem 0.75rem 1rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.input-with-prefix input {
+  flex: 1;
+  padding: 0.75rem 1rem 0.75rem 0;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.input-with-prefix input:focus {
+  outline: none;
 }
 
 .input-group {
@@ -489,6 +566,12 @@ body {
 
 .slider-row label strong {
   color: var(--text-primary);
+}
+
+.slider-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-left: 0.5rem;
 }
 
 .slider-row input[type="range"] {
@@ -590,6 +673,16 @@ body {
 
 .status-header h4 {
   color: var(--success);
+  flex: 1;
+}
+
+.days-badge {
+  padding: 0.25rem 0.75rem;
+  background: var(--warning);
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #000;
 }
 
 .status-details {
