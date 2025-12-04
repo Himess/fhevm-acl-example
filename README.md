@@ -159,6 +159,84 @@ All operations optimized for gas efficiency:
 | Change HR Manager | ~58,937 |
 | Grant Temporary Access | ~51,123 |
 
+### Gas Comparison: Delegation vs Direct Access
+
+| Approach | Gas Cost | Use Case |
+|----------|----------|----------|
+| `FHE.allow()` | ~50,000 | Permanent access grant |
+| `FHE.allowTransient()` | ~51,123 | Same-transaction only |
+| `FHE.delegateUserDecryption()` | ~60,000 | Time-limited, user-controlled |
+
+**Why use delegation over direct allow?**
+- **User sovereignty**: Employee controls who sees their data, not HR
+- **Auto-expiry**: No need to manually revoke after deadline
+- **Auditability**: Clear on-chain record of who had access and when
+
+## Security Considerations
+
+### Delegation Attack Vectors
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    DELEGATION SECURITY MODEL                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. EXPIRY MANIPULATION                                                 │
+│     ────────────────────                                                │
+│     Risk: Setting expiry too far in future                              │
+│     Mitigation: Contract could enforce MAX_DELEGATION_PERIOD            │
+│                                                                         │
+│     // Optional: Add max period check                                   │
+│     require(expiry <= block.timestamp + 365 days, "Max 1 year");        │
+│                                                                         │
+│  2. DELEGATION TO MALICIOUS CONTRACT                                    │
+│     ───────────────────────────────────                                 │
+│     Risk: Delegating to a contract that auto-decrypts                   │
+│     Mitigation: Users should only delegate to known EOAs                │
+│                                                                         │
+│  3. FRONT-RUNNING REVOCATION                                            │
+│     ─────────────────────────                                           │
+│     Risk: Delegate decrypts just before revocation tx confirms          │
+│     Mitigation: Inherent blockchain limitation, use shorter expiries    │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Access Control Edge Cases
+
+| Scenario | Expected Behavior | Tested? |
+|----------|-------------------|---------|
+| Zero address as employee | Reverts with `InvalidAddress` | ✅ |
+| Zero address as delegate | Reverts with `InvalidAddress` | ✅ |
+| Non-employee delegation | Reverts with `EmployeeDoesNotExist` | ✅ |
+| Duplicate employee | Reverts with `EmployeeAlreadyExists` | ✅ |
+| Non-HR adding employee | Reverts with `NotHRManager` | ✅ |
+| Non-owner changing HR | Reverts with `OwnableUnauthorizedAccount` | ✅ |
+
+### Reentrancy Considerations
+
+This contract is **not vulnerable** to reentrancy because:
+1. All state changes happen before external calls
+2. FHE operations are internal to the FHEVM coprocessor
+3. No ETH transfers or external contract calls in sensitive functions
+
+### FHE-Specific Security
+
+```solidity
+// All encrypted values are properly ACL-protected:
+// 1. Salary handles are stored privately (mapping)
+// 2. Access granted only via explicit allow() calls
+// 3. Contract itself has access via allowThis()
+// 4. Transient access clears after transaction
+```
+
+### Recommended Production Enhancements
+
+1. **Pausable**: Add emergency pause for HR operations
+2. **Rate limiting**: Prevent spam delegation requests
+3. **Event logging**: Already implemented for all state changes
+4. **Multi-sig HR**: For enterprise deployments
+
 ## Test Results
 
 ```
