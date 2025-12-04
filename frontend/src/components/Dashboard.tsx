@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import {
   Users,
@@ -6,7 +6,6 @@ import {
   Eye,
   EyeOff,
   UserPlus,
-  Clock,
   CheckCircle,
   XCircle,
   Briefcase,
@@ -37,7 +36,7 @@ interface MockEmployee {
 }
 
 export function Dashboard() {
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const chainId = useChainId();
   const [activeRole, setActiveRole] = useState<Role>('hr');
   const [delegateAddress, setDelegateAddress] = useState('');
