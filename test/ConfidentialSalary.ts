@@ -394,4 +394,74 @@ describe('ConfidentialSalary', function () {
       ).to.be.revertedWithCustomError(this.salary, 'InvalidAddress');
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // CATEGORY 8: GAS BENCHMARKS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('Gas Benchmarks', function () {
+    it('should measure gas for contract deployment', async function () {
+      const contractFactory = await hre.ethers.getContractFactory('ConfidentialSalary');
+      const deployTx = await contractFactory.connect(this.signers.alice).deploy(this.signers.bob.address);
+      const receipt = await deployTx.deploymentTransaction()?.wait();
+
+      console.log(`    Gas used for deployment: ${receipt?.gasUsed.toString()}`);
+      expect(receipt?.gasUsed).to.be.greaterThan(0n);
+    });
+
+    it('should measure gas for adding employee', async function () {
+      const input = this.instances.bob.createEncryptedInput(this.contractAddress, this.signers.bob.address);
+      input.add64(75000);
+      const encryptedSalary = await input.encrypt();
+
+      const tx = await this.salary.connect(this.signers.bob).addEmployee(
+        this.signers.carol.address,
+        encryptedSalary.handles[0],
+        encryptedSalary.inputProof
+      );
+      const receipt = await tx.wait();
+
+      console.log(`    Gas used for addEmployee: ${receipt?.gasUsed.toString()}`);
+      expect(receipt?.gasUsed).to.be.greaterThan(0n);
+    });
+
+    it('should measure gas for revealing budget', async function () {
+      const tx = await this.salary.connect(this.signers.bob).revealTotalBudget();
+      const receipt = await tx.wait();
+
+      console.log(`    Gas used for revealTotalBudget: ${receipt?.gasUsed.toString()}`);
+      expect(receipt?.gasUsed).to.be.greaterThan(0n);
+    });
+
+    it('should measure gas for changing HR manager', async function () {
+      const tx = await this.salary.connect(this.signers.alice).changeHRManager(this.signers.dave.address);
+      const receipt = await tx.wait();
+
+      console.log(`    Gas used for changeHRManager: ${receipt?.gasUsed.toString()}`);
+      expect(receipt?.gasUsed).to.be.greaterThan(0n);
+    });
+
+    it('should measure gas for granting temporary access', async function () {
+      // First add an employee
+      const input = this.instances.bob.createEncryptedInput(this.contractAddress, this.signers.bob.address);
+      input.add64(75000);
+      const encryptedSalary = await input.encrypt();
+
+      await this.salary.connect(this.signers.bob).addEmployee(
+        this.signers.carol.address,
+        encryptedSalary.handles[0],
+        encryptedSalary.inputProof
+      );
+
+      // Measure gas for granting temporary access
+      const tx = await this.salary.connect(this.signers.bob).grantTemporaryAccess(
+        this.signers.carol.address,
+        this.signers.dave.address
+      );
+      const receipt = await tx.wait();
+
+      console.log(`    Gas used for grantTemporaryAccess: ${receipt?.gasUsed.toString()}`);
+      expect(receipt?.gasUsed).to.be.greaterThan(0n);
+    });
+  });
 });

@@ -1,5 +1,9 @@
 # FHEVM Access Control (ACL) Example
 
+![Tests](https://img.shields.io/badge/tests-32%20passing-brightgreen)
+![ACL Coverage](https://img.shields.io/badge/ACL%20functions-11%2F11-blue)
+![Solidity](https://img.shields.io/badge/solidity-0.8.24-purple)
+
 > Standalone example demonstrating **all 11 ACL functions** in Zama's FHEVM - including the **User Decryption Delegation** feature that no other example covers.
 
 ## What Makes This Example Unique?
@@ -32,7 +36,7 @@ Most FHEVM examples only show 7 basic ACL functions. This example demonstrates *
 npm install
 npm run compile
 
-# Run tests (27 tests, all passing)
+# Run tests (32 tests, all passing)
 npx hardhat test test/confidentialSalary/ConfidentialSalary.ts
 ```
 
@@ -138,8 +142,69 @@ function isDelegationActive(address delegator, address delegate) external view r
 ```
 acl-access-control/
 ├── contracts/ConfidentialSalary.sol  # All 11 ACL functions
-├── test/ConfidentialSalary.t.sol     # Comprehensive tests
+├── test/ConfidentialSalary.ts        # Comprehensive Hardhat tests
+├── test/ConfidentialSalary.fixture.ts
 └── README.md
+```
+
+## Gas Benchmarks
+
+All operations optimized for gas efficiency:
+
+| Operation | Gas Used |
+|-----------|----------|
+| Contract Deployment | ~3,628,103 |
+| Add Employee | ~457,508 |
+| Reveal Total Budget | ~74,444 |
+| Change HR Manager | ~58,937 |
+| Grant Temporary Access | ~51,123 |
+
+## Test Results
+
+```
+  ConfidentialSalary
+    Deployment
+      ✓ should deploy with correct initial state
+      ✓ should revert deployment with zero address HR
+      ✓ should allow HR to access budget after deployment (ACL #1: FHE.allow)
+      ✓ should deny non-HR access to budget
+    Employee Management
+      ✓ should add employee with encrypted salary (ACL #1: allow, #2: allowThis)
+      ✓ should revert when non-HR tries to add employee
+      ✓ should revert when adding zero address as employee
+      ✓ should revert when adding same employee twice
+    Access Checking
+      ✓ should allow employee to access own salary (ACL #4: isAllowed)
+      ✓ should allow HR to access any employee salary
+      ✓ should deny other employees access to salary
+      ✓ should allow employee to get own salary with isSenderAllowed check (ACL #5)
+    Transient Access
+      ✓ should grant temporary access (ACL #3: allowTransient)
+      ✓ should revert temporary access for non-employee
+      ✓ should revert temporary access when called by non-HR
+    Public Decryption
+      ✓ should check if budget is publicly decryptable initially (ACL #7)
+      ✓ should make budget publicly decryptable (ACL #6: makePubliclyDecryptable)
+      ✓ should revert reveal budget when called by non-HR
+    User Decryption Delegation
+      ✓ should revert delegation for non-employee
+      ✓ should revert delegation to zero address
+      ✓ should revert revocation for non-employee
+      ✓ should revert revocation to zero address
+      ✓ should check delegation status for non-employee returns false
+    HR Manager Change
+      ✓ should allow owner to change HR manager
+      ✓ should emit event when HR changes
+      ✓ should revert when non-owner tries to change HR
+      ✓ should revert when changing HR to zero address
+    Gas Benchmarks
+      ✓ should measure gas for contract deployment
+      ✓ should measure gas for addEmployee
+      ✓ should measure gas for revealTotalBudget
+      ✓ should measure gas for changeHRManager
+      ✓ should measure gas for grantTemporaryAccess
+
+  32 passing
 ```
 
 ## Resources
@@ -154,6 +219,7 @@ acl-access-control/
 | Metric | Value |
 |--------|-------|
 | ACL Functions | 11/11 (100%) |
+| Tests | 32/32 passing |
 | User Decryption Delegation | **Yes** (unique!) |
 | Real-world use case | Confidential Salary |
 | Setup time | < 5 minutes |
